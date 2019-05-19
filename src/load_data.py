@@ -4,21 +4,39 @@ import re
 
 # Input Data Annotations
 DIALOGUE_START = '============================================================================='
-NON_SENTENCE_BEGIN = '{'
+ASIDE_START= '{A'
+COORDINATING_START= '{C'
+DISCOURSE_START = '{D'
+EDITING_START= '{E'
+FILLER_START = '{F'
 NON_SENTENCE_END = '}'
 RESTART_BEGIN = '['
 RESTART_END = ']'
 REPAIR_MARKER = '+'
-EDITING_MARKER = 'E'
-FILLER_MARKER = 'F'
-DISCOURSE_MARKER = 'D'
+OVERLAP_MARKER = '#'
+CONTINUATION_MARKER = '--'
+COMPLETE_MARKER = '/'
+INCOMPLETE_MARKER = '-/'
+IGNORE_TOKENS = [
+    OVERLAP_MARKER,
+    CONTINUATION_MARKER,
+    COMPLETE_MARKER,
+    INCOMPLETE_MARKER
+]
+NON_SENTENCE_DICT = {
+    ASIDE_START: '<O>',
+    COORDINATING_START: '<O>',
+    DISCOURSE_START: '<D>',
+    EDITING_START: '<E>',
+    FILLER_START: '<F>'
+}
 
 # Output Data Annotations
-BEGINNING_EDIT = 'BE'
-INSIDE_EDIT = 'IE'
-INTERUPTION_POINT = 'IP'
-BEGINNING_INTERUPTION = 'BE-IP'
-OUTSIDE = 'O'
+BEGINNING_EDIT = '<BE>'
+INSIDE_EDIT = '<IE>'
+INTERUPTION_POINT = '<IP>'
+BEGINNING_INTERUPTION = '<BE-IP>'
+OUTSIDE = '<O>'
 
 # Regex pattern for speaker info
 pattern = re.compile(r'^@*[AB]\.[0-9]+:')
@@ -47,13 +65,41 @@ def add_to_utterances(utterances, speech):
     speech = speech.strip()
     if utterances:
         previous_utterance = utterances[-1]
-        if previous_utterance.endswith("--") or \
-           previous_utterance.endswith("+"):
+        if previous_utterance.endswith(CONTINUATION_MARKER) or \
+           previous_utterance.endswith(REPAIR_MARKER):
             utterances[-1] += ' ' + speech
         else:
             utterances.append(speech)
     else:
         utterances.append(speech)
+
+def get_parsed_utterance(utterance):
+    print(utterance)
+    tokens = utterance.split()
+    print(tokens)
+    return parse_tokens(0, tokens)[1]
+
+
+def parse_tokens(i, tokens, status=OUTSIDE):
+    aligned_utterance = ''
+    if tokens:
+        while i < len(tokens):
+            if tokens[i] == RESTART_BEGIN:
+                i, nested_utterance = parse_tokens(i+1, tokens, INSIDE_EDIT)
+                aligned_utterance += nested_utterance
+            elif tokens[i] in NON_SENTENCE_DICT.keys():
+                i, nested_utterance = parse_tokens(i+1, tokens, NON_SENTENCE_DICT[tokens[i]])
+                aligned_utterance += nested_utterance
+            elif tokens[i] == NON_SENTENCE_END or tokens[i] == RESTART_END:
+                break
+            elif tokens[i] in IGNORE_TOKENS:
+                i += 1
+                continue
+            else:
+                aligned_utterance += tokens[i] + ' ' + status + ' '
+            i += 1
+
+    return i, aligned_utterance
 
 if __name__ == '__main__':
     input_file = 'data/sw2005.dff'
@@ -91,6 +137,6 @@ if __name__ == '__main__':
                 continue
         i += 1
 
-    print_utterances(speaker_a_utterances)
-    print('-'*200)
-    print_utterances(speaker_b_utterances)
+    total_utterances = speaker_a_utterances + speaker_b_utterances
+    for utterance in total_utterances:
+        print(get_parsed_utterance(utterance))
