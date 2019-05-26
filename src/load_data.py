@@ -4,10 +4,10 @@ import re
 
 # Input Data Annotations
 DIALOGUE_START = '============================================================================='
-ASIDE_START= '{A'
-COORDINATING_START= '{C'
+ASIDE_START = '{A'
+COORDINATING_START = '{C'
 DISCOURSE_START = '{D'
-EDITING_START= '{E'
+EDITING_START = '{E'
 FILLER_START = '{F'
 NON_SENTENCE_END = '}'
 RESTART_BEGIN = '['
@@ -39,11 +39,12 @@ BEGINNING_INTERUPTION = '<BE-IP>'
 OUTSIDE = '<O>'
 
 # Regex pattern for speaker info
-pattern = re.compile(r'^@*[AB]\.[0-9]+:')
+pattern = re.compile(r'^Speaker[AB][0-9]+/SYM \./\.')
 
 # Speaker Labels
 SPEAKER_A = 'A'
 SPEAKER_B = 'B'
+
 
 def get_tokens(text):
     return text.split()
@@ -73,6 +74,7 @@ def add_to_utterances(utterances, speech):
     else:
         utterances.append(speech)
 
+
 def get_parsed_utterance(utterance):
     print(utterance)
     tokens = utterance.split()
@@ -101,8 +103,9 @@ def parse_tokens(i, tokens, status=OUTSIDE):
 
     return i, aligned_utterance
 
+
 if __name__ == '__main__':
-    input_file = 'data/sw2005.dff'
+    input_file = 'data/sw2005.dps'
     content = []
     with open(input_file) as input_data:
         content = input_data.readlines()
@@ -120,13 +123,15 @@ if __name__ == '__main__':
         elif read_dialogue:
             span = get_speaker_span(line)
             if span:
-                speaker = line[0]
+                speaker = line[7]  # e.g. "SpeakerB2"
                 speech = line[span[1]:]
                 i += 1
                 while line and i < total_lines:
                     line = content[i].strip()
                     speech += ' ' + line
                     i += 1
+
+                speech = speech.strip()
 
                 if speaker == SPEAKER_A:
                     add_to_utterances(speaker_a_utterances, speech)
