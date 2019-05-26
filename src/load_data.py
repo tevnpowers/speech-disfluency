@@ -65,8 +65,8 @@ class Sequence:
     def __init__(self):
         self.sequence = []
 
-        # Track multiple levels of restarts
-        self.restart_depth = 0
+        # Track multiple levels of edits
+        self.edit_depth = 0
 
     def add_token(self, token):
         if not isinstance(token, Token):
@@ -74,12 +74,12 @@ class Sequence:
 
         if token.is_dysfl_markup:
             if token.token == RESTART_BEGIN:
-                self.restart_depth += 1
+                self.edit_depth += 1
             elif token.token == RESTART_END:
-                self.restart_depth -= 1
+                self.edit_depth -= 1
 
-        if self.restart_depth > 0:
-            token.is_inside_edit = True
+        if self.edit_depth > 0:
+            token.edit_depth = self.edit_depth
 
         self.sequence.append(token)
 
@@ -97,7 +97,20 @@ class Token:
         self.pos = pos
         self.is_dysfl_markup = is_dysfl_markup
 
-        self.is_inside_edit = False
+        # How many layers into a nested edit this is, 0 if not inside an edit
+        self.edit_depth = 0
+
+    @property
+    def is_inside_edit(self):
+        return self.edit_depth > 0
+
+    @property
+    def is_begin_edit(self):
+        return self.token == RESTART_BEGIN
+
+    @property
+    def is_end_edit(self):
+        return self.token == RESTART_END
 
     def __str__(self):
         inside_edit = '<IE>' if self.is_inside_edit else '<O>'
