@@ -13,15 +13,30 @@ NON_SENTENCE_END = '}'
 RESTART_BEGIN = '['
 RESTART_END = ']'
 REPAIR_MARKER = '+'
+
+# These don't seem to be used in POS-tagged dataset
 OVERLAP_MARKER = '#'
 CONTINUATION_MARKER = '--'
 COMPLETE_MARKER = '/'
 INCOMPLETE_MARKER = '-/'
+#
+
+# Special tokens that stand on their own (with no POS tag associated)
+STANDALONE_TOKENS = set([
+    ASIDE_START,
+    COORDINATING_START,
+    DISCOURSE_START,
+    EDITING_START,
+    FILLER_START,
+    NON_SENTENCE_END,
+    RESTART_BEGIN,
+    RESTART_END,
+    REPAIR_MARKER,
+])
+
 IGNORE_TOKENS = [
-    OVERLAP_MARKER,
-    CONTINUATION_MARKER,
-    COMPLETE_MARKER,
-    INCOMPLETE_MARKER
+    'E_S',
+    'N_S',
 ]
 NON_SENTENCE_DICT = {
     ASIDE_START: '<O>',
@@ -44,6 +59,52 @@ pattern = re.compile(r'^Speaker[AB][0-9]+/SYM \./\.')
 # Speaker Labels
 SPEAKER_A = 'A'
 SPEAKER_B = 'B'
+
+
+class Sequence:
+    def __init__(self):
+        self.sequence = []
+
+        # Track multiple levels of restarts
+        self.restart_depth = 0
+
+    def add_token(self, token):
+        if not isinstance(token, Token):
+            raise Exception('Give me a Token object pretty please')
+
+        if token.is_dysfl_markup:
+            if token.token == RESTART_BEGIN:
+                self.restart_depth += 1
+            elif token.token == RESTART_END:
+                self.restart_depth -= 1
+
+        if self.restart_depth > 0:
+            token.is_inside_edit = True
+
+        self.sequence.append(token)
+
+    def __str__(self):
+        return ' '.join(str(t) for t in self.sequence)
+
+
+class Token:
+    def __init__(self, token, pos=None, is_dysfl_markup=False):
+        if is_dysfl_markup:
+            if token not in STANDALONE_TOKENS:
+                raise Exception(f'Disfluency markup token {token} not recognized')
+
+        self.token = token
+        self.pos = pos
+        self.is_dysfl_markup = is_dysfl_markup
+
+        self.is_inside_edit = False
+
+    def __str__(self):
+        inside_edit = '<IE>' if self.is_inside_edit else '<O>'
+        pos = f'/{self.pos}' if self.pos else ''
+        return f'{inside_edit} {self.token}{pos}'.strip()
+
+    __repr__ = __str__
 
 
 def get_tokens(text):
@@ -77,31 +138,47 @@ def add_to_utterances(utterances, speech):
 
 def get_parsed_utterance(utterance):
     print(utterance)
-    tokens = utterance.split()
+    tokens = get_tokens(utterance)
     print(tokens)
     return parse_tokens(0, tokens)[1]
 
 
 def parse_tokens(i, tokens, status=OUTSIDE):
-    aligned_utterance = ''
+    sequence = Sequence()
     if tokens:
         while i < len(tokens):
-            if tokens[i] == RESTART_BEGIN:
-                i, nested_utterance = parse_tokens(i+1, tokens, INSIDE_EDIT)
-                aligned_utterance += nested_utterance
-            elif tokens[i] in NON_SENTENCE_DICT.keys():
-                i, nested_utterance = parse_tokens(i+1, tokens, NON_SENTENCE_DICT[tokens[i]])
-                aligned_utterance += nested_utterance
-            elif tokens[i] == NON_SENTENCE_END or tokens[i] == RESTART_END:
-                break
-            elif tokens[i] in IGNORE_TOKENS:
-                i += 1
-                continue
-            else:
-                aligned_utterance += tokens[i] + ' ' + status + ' '
+            token = tokens[i]
+
+            try:
+                if token in IGNORE_TOKENS:
+                    # Don't bother with it
+                    pass
+                elif token in STANDALONE_TOKENS:
+                    sequence.add_token(Token(token, is_dysfl_markup=True))
+                else:
+                    word, pos = token.split('/')
+                    sequence.add_token(Token(word, pos=pos))
+            except Exception:
+                print(f'Failed to parse "{token}"')
+                raise
+
             i += 1
 
-    return i, aligned_utterance
+            # if tokens[i] == RESTART_BEGIN:
+            #     i, nested_utterance = parse_tokens(i+1, tokens, INSIDE_EDIT)
+            #     aligned_utterance += nested_utterance
+            # elif tokens[i] in NON_SENTENCE_DICT.keys():
+            #     i, nested_utterance = parse_tokens(i+1, tokens, NON_SENTENCE_DICT[tokens[i]])
+            #     aligned_utterance += nested_utterance
+            # elif tokens[i] == NON_SENTENCE_END or tokens[i] == RESTART_END:
+            #     break
+            # elif tokens[i] in IGNORE_TOKENS:
+            #     i += 1
+            #     continue
+            # else:
+            #     aligned_utterance += tokens[i] + ' ' + status + ' '
+
+    return i, sequence
 
 
 if __name__ == '__main__':
@@ -144,4 +221,5 @@ if __name__ == '__main__':
 
     total_utterances = speaker_a_utterances + speaker_b_utterances
     for utterance in total_utterances:
+        print('-' * 20)
         print(get_parsed_utterance(utterance))
