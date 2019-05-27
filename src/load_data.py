@@ -61,32 +61,6 @@ SPEAKER_A = 'A'
 SPEAKER_B = 'B'
 
 
-class Sequence:
-    def __init__(self):
-        self.sequence = []
-
-        # Track multiple levels of edits
-        self.edit_depth = 0
-
-    def add_token(self, token):
-        if not isinstance(token, Token):
-            raise Exception('Give me a Token object pretty please')
-
-        if token.is_dysfl_markup:
-            if token.token == RESTART_BEGIN:
-                self.edit_depth += 1
-            elif token.token == RESTART_END:
-                self.edit_depth -= 1
-
-        if self.edit_depth > 0:
-            token.edit_depth = self.edit_depth
-
-        self.sequence.append(token)
-
-    def __str__(self):
-        return ' '.join(str(t) for t in self.sequence)
-
-
 class Token:
     def __init__(self, token, pos=None, is_dysfl_markup=False):
         if is_dysfl_markup:
@@ -100,24 +74,68 @@ class Token:
         # How many layers into a nested edit this is, 0 if not inside an edit
         self.edit_depth = 0
 
+        self.is_begin_edit = False
+        self.is_end_edit = False
+
     @property
     def is_inside_edit(self):
         return self.edit_depth > 0
 
-    @property
-    def is_begin_edit(self):
-        return self.token == RESTART_BEGIN
+    def __str__(self):
+        dysfl_tag = '<O>'
+        if self.is_begin_edit:
+            dysfl_tag = '<BE>'
+        elif self.is_inside_edit:
+            dysfl_tag = '<IE>'
+        else:
+            dysfl_tag = '<O>'
 
-    @property
-    def is_end_edit(self):
-        return self.token == RESTART_END
+        pos = f'/{self.pos}' if self.pos else ''
+        return f'{dysfl_tag} {self.token}{pos}'.strip()
+
+
+class Sequence:
+    def __init__(self):
+        self.sequence = []
+
+        # Track multiple levels of edits
+        self.edit_depth = 0
+
+        # If we find a begin or end marker, we'll attach it to the token after
+        self.next_is_begin = False
+        self.next_is_end = False
+
+    def add_token(self, token):
+        if not isinstance(token, Token):
+            raise Exception('Give me a Token object pretty please')
+
+        if token.is_dysfl_markup:
+            if token.token == RESTART_BEGIN:
+                self.edit_depth += 1
+                self.next_is_begin = True
+            elif token.token == RESTART_END:
+                self.edit_depth -= 1
+                self.next_is_end = True
+
+            # TODO handle the other kinds of markup here
+            # Don't add to the sequence since they're metadata
+            return
+
+        if self.next_is_begin:
+            token.is_begin_edit = True
+            self.next_is_begin = False
+
+        if self.next_is_end:
+            token.is_end_edit = True
+            self.next_is_end = False
+
+        if self.edit_depth > 0:
+            token.edit_depth = self.edit_depth
+
+        self.sequence.append(token)
 
     def __str__(self):
-        inside_edit = '<IE>' if self.is_inside_edit else '<O>'
-        pos = f'/{self.pos}' if self.pos else ''
-        return f'{inside_edit} {self.token}{pos}'.strip()
-
-    __repr__ = __str__
+        return ' '.join(str(t) for t in self.sequence)
 
 
 def get_tokens(text):
@@ -156,7 +174,7 @@ def get_parsed_utterance(utterance):
     return parse_tokens(0, tokens)[1]
 
 
-def parse_tokens(i, tokens, status=OUTSIDE):
+def parse_tokens(i, tokens):
     sequence = Sequence()
     if tokens:
         while i < len(tokens):
@@ -176,20 +194,6 @@ def parse_tokens(i, tokens, status=OUTSIDE):
                 raise
 
             i += 1
-
-            # if tokens[i] == RESTART_BEGIN:
-            #     i, nested_utterance = parse_tokens(i+1, tokens, INSIDE_EDIT)
-            #     aligned_utterance += nested_utterance
-            # elif tokens[i] in NON_SENTENCE_DICT.keys():
-            #     i, nested_utterance = parse_tokens(i+1, tokens, NON_SENTENCE_DICT[tokens[i]])
-            #     aligned_utterance += nested_utterance
-            # elif tokens[i] == NON_SENTENCE_END or tokens[i] == RESTART_END:
-            #     break
-            # elif tokens[i] in IGNORE_TOKENS:
-            #     i += 1
-            #     continue
-            # else:
-            #     aligned_utterance += tokens[i] + ' ' + status + ' '
 
     return i, sequence
 
