@@ -56,6 +56,8 @@ OUTSIDE = '<O>'
 # Regex pattern for speaker info
 pattern = re.compile(r'^Speaker[AB][0-9]+/SYM \./\.')
 
+symbol_pattern = re.compile(r'^\W+$')
+
 # Speaker Labels
 SPEAKER_A = 'A'
 SPEAKER_B = 'B'
@@ -71,27 +73,33 @@ class Token:
         self.pos = pos
         self.is_dysfl_markup = is_dysfl_markup
 
+        self.is_symbol = symbol_pattern.match(token) is not None
+
         # How many layers into a nested edit this is, 0 if not inside an edit
         self.edit_depth = 0
 
         self.is_begin_edit = False
         self.is_end_edit = False
+        self.is_interruption_point = False
 
     @property
     def is_inside_edit(self):
         return self.edit_depth > 0
 
     def __str__(self):
-        dysfl_tag = '<O>'
+        dysfl_tag = ''
         if self.is_begin_edit:
-            dysfl_tag = '<BE>'
+            if self.is_interruption_point:
+                dysfl_tag = 'BE-IP'
+            else:
+                dysfl_tag = 'BE'
+        elif self.is_interruption_point:
+            dysfl_tag = 'IP'
         elif self.is_inside_edit:
-            dysfl_tag = '<IE>'
-        else:
-            dysfl_tag = '<O>'
+            dysfl_tag = 'IE'
 
         pos = f'/{self.pos}' if self.pos else ''
-        return f'{dysfl_tag} {self.token}{pos}'.strip()
+        return f'{self.token} {dysfl_tag}'.strip()
 
 
 class Sequence:
@@ -104,6 +112,7 @@ class Sequence:
         # If we find a begin or end marker, we'll attach it to the token after
         self.next_is_begin = False
         self.next_is_end = False
+        self.prev_token = None
 
     def add_token(self, token):
         if not isinstance(token, Token):
@@ -113,12 +122,22 @@ class Sequence:
             if token.token == RESTART_BEGIN:
                 self.edit_depth += 1
                 self.next_is_begin = True
-            elif token.token == RESTART_END:
+            # elif token.token == RESTART_END:
+            #     self.edit_depth -= 1
+            #     self.next_is_end = True
+            elif token.token == REPAIR_MARKER:
+                # IPs get attached to the previous token
+                self.prev_token.is_interruption_point = True
+
+                # We end checking for edits at the IP
                 self.edit_depth -= 1
-                self.next_is_end = True
 
             # TODO handle the other kinds of markup here
             # Don't add to the sequence since they're metadata
+            return
+
+        if token.is_symbol and self.edit_depth > 0:
+            # Ignore symbols inside edits
             return
 
         if self.next_is_begin:
@@ -133,6 +152,8 @@ class Sequence:
             token.edit_depth = self.edit_depth
 
         self.sequence.append(token)
+
+        self.prev_token = token
 
     def __str__(self):
         return ' '.join(str(t) for t in self.sequence)
@@ -199,7 +220,7 @@ def parse_tokens(i, tokens):
 
 
 if __name__ == '__main__':
-    input_file = 'data/sw2005.dps'
+    input_file = 'data/sw2005_trimmed.dps'
     content = []
     with open(input_file) as input_data:
         content = input_data.readlines()
