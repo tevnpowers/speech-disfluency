@@ -79,7 +79,6 @@ class Token:
         self.edit_depth = 0
 
         self.is_begin_edit = False
-        self.is_end_edit = False
         self.is_interruption_point = False
 
     @property
@@ -111,7 +110,6 @@ class Sequence:
 
         # If we find a begin or end marker, we'll attach it to the token after
         self.next_is_begin = False
-        self.next_is_end = False
         self.prev_token = None
 
     def add_token(self, token):
@@ -122,9 +120,6 @@ class Sequence:
             if token.token == RESTART_BEGIN:
                 self.edit_depth += 1
                 self.next_is_begin = True
-            # elif token.token == RESTART_END:
-            #     self.edit_depth -= 1
-            #     self.next_is_end = True
             elif token.token == REPAIR_MARKER:
                 # IPs get attached to the previous token
                 self.prev_token.is_interruption_point = True
@@ -143,10 +138,6 @@ class Sequence:
         if self.next_is_begin:
             token.is_begin_edit = True
             self.next_is_begin = False
-
-        if self.next_is_end:
-            token.is_end_edit = True
-            self.next_is_end = False
 
         if self.edit_depth > 0:
             token.edit_depth = self.edit_depth
