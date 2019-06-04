@@ -95,8 +95,6 @@ if __name__ == '__main__':
             sentences.append(sequence.sequence)
 
     print('Creating 80-20 train-test split...')
-    print('Training on {} sentences'.format(len(y_train)))
-    print('Evaluating on {} sentences'.format(len(y_test)))
 
     train_test_split = 0.8
     train_count = int(train_test_split*len(sentences))
@@ -108,6 +106,8 @@ if __name__ == '__main__':
 
     X_test = [sent2features(s) for s in test_sents]
     y_test = [sent2labels(s) for s in test_sents]
+    print('Training on {} sentences'.format(len(y_train)))
+    print('Evaluating on {} sentences'.format(len(y_test)))
 
     print('Training CRF model...')
     crf = sklearn_crfsuite.CRF(
