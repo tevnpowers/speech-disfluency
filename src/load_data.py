@@ -67,7 +67,7 @@ class Token:
     def __init__(self, token, pos=None, is_dysfl_markup=False):
         if is_dysfl_markup:
             if token not in STANDALONE_TOKENS:
-                raise Exception(f'Disfluency markup token {token} not recognized')
+                raise Exception('Disfluency markup token {} not recognized'.format(token))
 
         self.token = token
         self.pos = pos
@@ -80,26 +80,36 @@ class Token:
 
         self.is_begin_edit = False
         self.is_interruption_point = False
+        self._dysfl_tag = None
 
     @property
     def is_inside_edit(self):
         return self.edit_depth > 0
 
-    def __str__(self):
-        dysfl_tag = ''
-        if self.is_begin_edit:
-            if self.is_interruption_point:
-                dysfl_tag = 'BE-IP'
+    @property
+    def pos_tag(self):
+        return '{}'.format(self.pos) if self.pos else ''
+
+    @property
+    def dysfl_tag(self):
+        if not self._dysfl_tag:
+            dysfl_tag = ''
+            if self.is_begin_edit:
+                if self.is_interruption_point:
+                    dysfl_tag = 'BE-IP'
+                else:
+                    dysfl_tag = 'BE'
+            elif self.is_interruption_point:
+                dysfl_tag = 'IP'
+            elif self.is_inside_edit:
+                dysfl_tag = 'IE'
             else:
-                dysfl_tag = 'BE'
-        elif self.is_interruption_point:
-            dysfl_tag = 'IP'
-        elif self.is_inside_edit:
-            dysfl_tag = 'IE'
+                dysfl_tag = 'O'
+            self._dysfl_tag = dysfl_tag
+        return self._dysfl_tag
 
-        pos = f'/{self.pos}' if self.pos else ''
-        return f'{self.token} {dysfl_tag}'.strip()
-
+    def __repr__(self):
+        return '{} {} {}'.format(self.token, self.pos_tag, self.dysfl_tag)
 
 class Sequence:
     def __init__(self):
@@ -146,7 +156,7 @@ class Sequence:
 
         self.prev_token = token
 
-    def __str__(self):
+    def __repr__(self):
         return ' '.join(str(t) for t in self.sequence)
 
 
@@ -158,13 +168,6 @@ def get_speaker_span(text):
     match = re.match(pattern, text)
     if match:
         return match.span()
-
-
-def print_utterances(utterances):
-    for utterance in utterances:
-        print(utterance)
-        print('*'*25)
-
 
 def add_to_utterances(utterances, speech):
     speech = speech.strip()
@@ -180,9 +183,7 @@ def add_to_utterances(utterances, speech):
 
 
 def get_parsed_utterance(utterance):
-    print(utterance)
     tokens = get_tokens(utterance)
-    print(tokens)
     return parse_tokens(0, tokens)[1]
 
 
@@ -193,25 +194,22 @@ def parse_tokens(i, tokens):
             token = tokens[i]
 
             try:
-                if token in IGNORE_TOKENS:
-                    # Don't bother with it
-                    pass
-                elif token in STANDALONE_TOKENS:
+                if token in STANDALONE_TOKENS:
                     sequence.add_token(Token(token, is_dysfl_markup=True))
-                else:
-                    word, pos = token.split('/')
-                    sequence.add_token(Token(word, pos=pos))
+                elif token not in IGNORE_TOKENS:
+                    word, pos = token.strip().split('/')
+                    if pos != '.' and pos != ',':
+                        sequence.add_token(Token(word, pos=pos))
             except Exception:
-                print(f'Failed to parse "{token}"')
+                print('Failed to parse "{}"'.format(token))
                 raise
 
             i += 1
 
     return i, sequence
 
-
-if __name__ == '__main__':
-    input_file = 'data/sw2005_trimmed.dps'
+def load_data(filename):
+    input_file = filename
     content = []
     with open(input_file) as input_data:
         content = input_data.readlines()
@@ -248,7 +246,4 @@ if __name__ == '__main__':
                 continue
         i += 1
 
-    total_utterances = speaker_a_utterances + speaker_b_utterances
-    for utterance in total_utterances:
-        print('-' * 20)
-        print(get_parsed_utterance(utterance))
+    return speaker_a_utterances + speaker_b_utterances
