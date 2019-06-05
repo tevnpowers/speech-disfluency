@@ -29,12 +29,14 @@ if __name__ == '__main__':
     train_sents = sentences[:train_count]
     test_sents = sentences[train_count:]
 
+    print('Transforming data features to sparse vectors...')
     v = DictVectorizer()
     X_train, y_train = get_features_and_labels(train_sents)
     X_train = v.fit_transform(X_train)
     X_test, y_test = get_features_and_labels(test_sents)
     X_test = v.transform(X_test)
-    print('Training MaxEnt on {} sentences'.format(len(y_train)))
+
+    print('Training MaxEnt on {} tokens...'.format(len(y_train)))
     maxent = clf = LogisticRegression(random_state=0, solver='lbfgs',
                     multi_class='multinomial', max_iter=400)
     maxent.fit(X_train, y_train)
@@ -42,7 +44,7 @@ if __name__ == '__main__':
     labels = list(maxent.classes_)
     labels.remove('O')
 
-    print('Evaluating MaxEnt on {} sentences'.format(len(y_test)))
+    print('Evaluating MaxEnt on {} tokens...'.format(len(y_test)))
     y_pred = maxent.predict(X_test)
 
     print('Recording metrics...')
