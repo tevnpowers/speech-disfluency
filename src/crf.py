@@ -1,31 +1,15 @@
-import os
-
 import sklearn
 import sklearn_crfsuite
 from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn_crfsuite import metrics
 
 from classifier import sent2features, sent2labels
-from load_data import load_data, get_parsed_utterance
-
-DATA_DIRS = [
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/2',
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/3',
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/4'
-]
+from load_data import get_data, get_parsed_utterance
 
 if __name__ == '__main__':
-    raw_data = []
-    for directory in DATA_DIRS:
-        print('Loading raw data from {}...'.format(directory))
-        for filename in os.listdir(directory):
-            if filename.endswith(".dps"):
-                filepath = os.path.join(directory, filename)
-                raw_data += load_data(filepath)
-
     print('Parsing annotated sentences...')
     sentences = []
-    for utterance in raw_data:
+    for utterance in get_data():
         sequence = get_parsed_utterance(utterance)
         if len(sequence.sequence) > 0:
             sentences.append(sequence.sequence)

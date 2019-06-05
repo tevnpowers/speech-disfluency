@@ -2,6 +2,11 @@ import sys
 import os
 import re
 
+DATA_DIRS = [
+    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/2',
+    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/3',
+    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/4'
+]
 
 IGNORE_PUNCTUATION_INSIDE_EDIT = False
 IGNORE_PUNCTUATION_OUTSIDE_EDIT = False
@@ -254,3 +259,13 @@ def load_data(filename):
         i += 1
 
     return speaker_a_utterances + speaker_b_utterances
+
+def get_data():
+    raw_data = []
+    for directory in DATA_DIRS:
+        print('Loading raw data from {}...'.format(directory))
+        for filename in os.listdir(directory):
+            if filename.endswith(".dps"):
+                filepath = os.path.join(directory, filename)
+                raw_data += load_data(filepath)
+    return raw_data
