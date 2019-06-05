@@ -2,6 +2,10 @@ import sys
 import os
 import re
 
+
+IGNORE_PUNCTUATION_INSIDE_EDIT = False
+IGNORE_PUNCTUATION_OUTSIDE_EDIT = False
+
 # Input Data Annotations
 DIALOGUE_START = '============================================================================='
 ASIDE_START = '{A'
@@ -141,9 +145,9 @@ class Sequence:
             # Don't add to the sequence since they're metadata
             return
 
-        if token.is_symbol and self.edit_depth > 0:
-            # Ignore symbols inside edits
-            return
+            if IGNORE_PUNCTUATION_INSIDE_EDIT and token.is_symbol and self.edit_depth > 0:
+                # Ignore symbols inside edits
+                return
 
         if self.next_is_begin:
             token.is_begin_edit = True
@@ -198,7 +202,10 @@ def parse_tokens(i, tokens):
                     sequence.add_token(Token(token, is_dysfl_markup=True))
                 elif token not in IGNORE_TOKENS:
                     word, pos = token.strip().split('/')
-                    if pos != '.' and pos != ',':
+                    if IGNORE_PUNCTUATION_OUTSIDE_EDIT:
+                        if pos != '.' and pos != ',':
+                            sequence.add_token(Token(word, pos=pos))
+                    else:
                         sequence.add_token(Token(word, pos=pos))
             except Exception:
                 print('Failed to parse "{}"'.format(token))
