@@ -3,9 +3,9 @@ import os
 import re
 
 DATA_DIRS = [
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/2',
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/3',
-    '/corpora/LDC/LDC99T42/RAW/dysfl/dps/swbd/4'
+    './corpora/swbd/2',
+    './corpora/swbd/3',
+    './corpora/swbd/4',
 ]
 
 IGNORE_PUNCTUATION_INSIDE_EDIT = False
