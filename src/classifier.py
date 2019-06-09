@@ -1,3 +1,5 @@
+import operator
+
 def word2features(sent, i):
     # Best features from paper (tokens + POS tags):
     # Unigrams: (word_i), (word_i+1)
@@ -62,3 +64,19 @@ def sent2features(sent):
 
 def sent2labels(sent):
     return [token.dysfl_tag for token in sent]
+
+def optimize(probability_distributions):
+    labels = []
+    for token_distribution in probability_distributions:
+        label = max(token_distribution.items(), key=operator.itemgetter(1))[0]
+        labels.append(label)
+    return labels
+
+def run_ilp_program(predictions, flatten=True):
+    y_pred = []
+    for sentence_distributions in predictions:
+        if flatten:
+            y_pred += optimize(sentence_distributions)
+        else:
+            y_pred.append(optimize(sentence_distributions))
+    return y_pred
