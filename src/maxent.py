@@ -2,7 +2,7 @@ from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn.feature_extraction import DictVectorizer
-from classifier import sent2features, sent2labels
+from classifier import sent2features, sent2labels, run_ilp_program
 from load_data import get_data, get_parsed_utterance
 
 
@@ -45,7 +45,19 @@ if __name__ == '__main__':
     labels.remove('O')
 
     print('Evaluating MaxEnt on {} tokens...'.format(len(y_test)))
-    y_pred = maxent.predict(X_test)
+    predicted_distrubitions = maxent.predict_proba(X_test)
+    sentence_distributions = []
+    current_index = 0
+    for sentence in X_test:
+        label_count = len(sentence.nonzero()[1])
+        sentence_results = predicted_distrubitions[current_index:(current_index + label_count)]
+        sentence_list = []
+        for result in sentence_results:
+            sentence_list.append(dict(zip(maxent.classes_, result)))
+        sentence_distributions.append(sentence_list)
+        current_index += label_count
+
+    y_pred = run_ilp_program(sentence_distributions)
 
     print('Recording metrics...')
-    print(metrics.classification_report(y_test, y_pred, labels=labels))
+    print(metrics.classification_report(y_test, y_pred, labels=labels, digits=3))
