@@ -3,8 +3,7 @@ import sklearn_crfsuite
 from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn_crfsuite import metrics
 
-from classifier import sent2features, sent2labels
-from ilp import run_ilp_program
+from classifier import run_ilp_program, sent2features, sent2labels
 from load_data import get_data, get_parsed_utterance
 
 if __name__ == '__main__':
@@ -45,9 +44,7 @@ if __name__ == '__main__':
 
     print('Executing model against test set...')
     predicted_distrubitions = crf.predict_marginals(X_test)
-    y_pred = []
-    for sentence_distributions in predicted_distrubitions:
-        y_pred.append(run_ilp_program(sentence_distributions))
+    y_pred = run_ilp_program(predicted_distrubitions, flatten=False)
 
     print('Recording metrics...')
     metrics.flat_f1_score(y_test, y_pred, average='weighted', labels=labels)
