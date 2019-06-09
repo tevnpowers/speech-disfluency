@@ -138,7 +138,7 @@ def optimize(probability_distributions):
             lp += pulp.lpSum([o, -1 * prev_be_ip, -1 * prev_ip, -1 * prev_o]) <= 0
 
             # Can't go BE to BE
-            lp += pulp.lpSum([-1 * be, -1 * prev_be, -1 * prev_ip, -1 * prev_o]) >= -1
+            lp += pulp.lpSum([-1 * be, -1 * prev_be]) >= -1
 
     lp.solve()
 
