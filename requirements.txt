@@ -1,5 +1,5 @@
 joblib==0.13.2
-numpy==1.16.4
+numpy==1.22.0
 PuLP==1.6.10
 pyparsing==2.4.0
 python-crfsuite==0.9.6
