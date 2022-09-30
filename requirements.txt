@@ -1,4 +1,4 @@
-joblib==0.13.2
+joblib==1.2.0
 numpy==1.16.4
 PuLP==1.6.10
 pyparsing==2.4.0
